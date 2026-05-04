@@ -10,11 +10,6 @@ METRIC_COLUMNS = [
     "Calls",
     "Directions",
     "Website clicks",
-    "Messages",
-    "Bookings",
-    "Food orders",
-    "Food menu clicks",
-    "Hotel bookings",
 ]
 
 METRIC_DESCRIPTIONS = {
@@ -23,13 +18,8 @@ METRIC_DESCRIPTIONS = {
     "Google Maps - Mobile": "Number of people that viewed your Business Profile on Google Maps using Mobile",
     "Google Maps - Desktop": "Number of people that viewed your Business Profile on Google Maps using Desktop",
     "Calls": "Number of interactions with the call button from your Business Profile",
-    "Messages": "Number of conversations initiated from your Business Profile",
-    "Bookings": "Number of bookings made from your Business Profile",
     "Directions": "Number of requests for directions made from your Business Profile",
     "Website clicks": "Number of interactions with the website button from your Business Profile",
-    "Food orders": "Number of Food orders placed for pickup or delivery from your Google Business Profile with an Order with Google Provider",
-    "Food menu clicks": "Number of Food orders placed for pickup or delivery from your Google Business Profile with an Order with Google Provider",
-    "Hotel bookings": "Number of interactions with the hotel supplier's free booking link",
 }
 
 MONTH_NAMES = [
