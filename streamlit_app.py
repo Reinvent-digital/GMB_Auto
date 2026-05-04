@@ -168,7 +168,7 @@ def main():
                 # Show a mini preview
                 st.write("### Data Preview")
                 display_df = make_display_dataframe(result, labels)
-                st.dataframe(display_df.head(), use_container_width=True)
+                st.dataframe(display_df.head(), width="stretch")
 
                 buffer = BytesIO()
                 
@@ -191,7 +191,7 @@ def main():
                     data=buffer,
                     file_name=file_name,
                     mime=mime_type,
-                    use_container_width=True
+                    width="stretch"
                 )
                 
         except Exception as e:
