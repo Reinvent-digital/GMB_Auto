@@ -92,9 +92,14 @@ def read_uploaded_file(uploaded_file) -> pd.DataFrame:
 
 def make_display_dataframe(df: pd.DataFrame, labels: list[str]) -> pd.DataFrame:
     """Formats the flat dataframe into a MultiIndex dataframe for a beautiful Streamlit display"""
-    tuples = [("Business name", "", "")]
+    tuples = []
+    if "Business name" in df.columns:
+        tuples.append(("Business name", "", ""))
+    if "Address" in df.columns:
+        tuples.append(("Address", "", ""))
+        
     for col in df.columns:
-        if col == "Business name":
+        if col in ("Business name", "Address"):
             continue
         # Extract metric and label
         for label in labels:

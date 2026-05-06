@@ -27,7 +27,6 @@ MONTH_NAMES = [
     "july", "august", "september", "october", "november", "december",
 ]
 
-
 def infer_month_label(path: Path) -> str:
     name = path.name.lower()
     for month in MONTH_NAMES:
@@ -74,23 +73,34 @@ def read_gmb_file(path_or_buffer) -> pd.DataFrame:
 
 def build_comparison_table(datasets: list) -> pd.DataFrame:
     """datasets is a list of tuples: (DataFrame, label_string)"""
-    # Create a base dataframe of all unique business names
     if not datasets:
         return pd.DataFrame()
     
-    businesses = pd.concat([d[0]["Business name"] for d in datasets]).drop_duplicates().reset_index(drop=True)
-    output = pd.DataFrame({"Business name": businesses}).sort_values("Business name")
+    # Determine the merge keys based on available columns
+    merge_keys = ["Business name"]
+    if all("Address" in d[0].columns for d in datasets):
+        merge_keys.append("Address")
+    
+    # Create a base dataframe of all unique keys
+    all_keys = pd.concat([d[0][merge_keys] for d in datasets]).drop_duplicates().reset_index(drop=True)
+    output = all_keys.sort_values("Business name").reset_index(drop=True)
     
     for metric in METRIC_COLUMNS:
         for df, label in datasets:
             col_name = f"{metric} {label}"
             if metric in df.columns:
-                temp = df[["Business name", metric]].rename(columns={metric: col_name})
-                output = pd.merge(output, temp, on="Business name", how="left")
+                temp = df[merge_keys + [metric]].rename(columns={metric: col_name})
+                
+                # To prevent duplicates from multiplying rows if there are STILL duplicate keys
+                # We can group by the merge keys and sum the metric, or just drop duplicates.
+                # Summing is safer:
+                temp = temp.groupby(merge_keys, as_index=False)[col_name].sum()
+                
+                output = pd.merge(output, temp, on=merge_keys, how="left")
                 output[col_name] = output[col_name].fillna(0).astype(int)
 
     # Filter to only the columns that actually got created, in the right order
-    first_cols = ["Business name"]
+    first_cols = merge_keys.copy()
     for metric in METRIC_COLUMNS:
         for df, label in datasets:
             col_name = f"{metric} {label}"
@@ -115,6 +125,8 @@ def save_comparison_excel(df: pd.DataFrame, path_or_buffer, labels: list):
         workbook = writer.book
         sheet = writer.sheets["Comparison"]
         
+        has_address = "Address" in df.columns
+        
         # Row 1: Business name
         cell_a1 = sheet.cell(row=1, column=1, value="Business name")
         cell_a1.fill = header_fill
@@ -125,8 +137,21 @@ def save_comparison_excel(df: pd.DataFrame, path_or_buffer, labels: list):
         sheet.merge_cells("A1:A3")
         sheet.column_dimensions["A"].width = 60
         
-        # Build metric groupings based on current dataframe
         current_col = 2
+        
+        if has_address:
+            # Row 1: Address
+            cell_b1 = sheet.cell(row=1, column=2, value="Address")
+            cell_b1.fill = header_fill
+            cell_b1.font = bold_font
+            cell_b1.alignment = center_align
+            
+            # Merge rows 1-3 for Address
+            sheet.merge_cells("B1:B3")
+            sheet.column_dimensions["B"].width = 60
+            current_col = 3
+        
+        # Build metric groupings based on current dataframe
         num_months = len(labels)
         
         for metric in METRIC_COLUMNS:
@@ -164,4 +189,4 @@ def save_comparison_excel(df: pd.DataFrame, path_or_buffer, labels: list):
             current_col += num_months
 
         # Freeze panes below the headers and business name column
-        sheet.freeze_panes = "B4"
+        sheet.freeze_panes = "C4" if has_address else "B4"
