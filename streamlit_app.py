@@ -118,26 +118,33 @@ def make_display_dataframe(df: pd.DataFrame, labels: list[str]) -> pd.DataFrame:
 def main():
     st.title("📈 GMB Insights Comparator")
     st.markdown("Upload your monthly Google Business Profile reports to automatically generate a side-by-side comparison.")
+    
+    st.markdown("---")
+    
+    # Get number of months from the user
+    num_months = st.number_input("How many months do you want to compare?", min_value=2, max_value=12, value=2, step=1)
 
     st.markdown("---")
 
-    # File uploads
-    col1, col2, col3 = st.columns(3)
+    # Dynamic File uploads
+    cols = st.columns(num_months if num_months <= 4 else 4)
     
-    with col1:
-        st.subheader("📁 Month 1")
-        file1 = st.file_uploader("Upload first report", type=["csv", "xlsx", "xls"], key="file1")
-        label1 = st.text_input("Label (e.g. February)", placeholder="Auto-detect", key="label1")
+    uploaded_files = []
+    user_labels = []
 
-    with col2:
-        st.subheader("📁 Month 2")
-        file2 = st.file_uploader("Upload second report", type=["csv", "xlsx", "xls"], key="file2")
-        label2 = st.text_input("Label (e.g. March)", placeholder="Auto-detect", key="label2")
-        
-    with col3:
-        st.subheader("📁 Month 3 (Optional)")
-        file3 = st.file_uploader("Upload third report", type=["csv", "xlsx", "xls"], key="file3")
-        label3 = st.text_input("Label (e.g. April)", placeholder="Auto-detect", key="label3")
+    for i in range(num_months):
+        # We wrap columns into a new row if there are more than 4
+        col_idx = i % 4
+        if i > 0 and col_idx == 0:
+            cols = st.columns(4)
+            
+        with cols[col_idx]:
+            st.subheader(f"📁 Month {i + 1}")
+            file = st.file_uploader(f"Upload report {i + 1}", type=["csv", "xlsx", "xls"], key=f"file{i}")
+            label = st.text_input(f"Label", placeholder="Auto-detect", key=f"label{i}")
+            
+            uploaded_files.append(file)
+            user_labels.append(label)
 
     st.markdown("---")
     
@@ -146,24 +153,34 @@ def main():
     with col_opt1:
         output_format = st.radio("Choose Output Format:", ["Excel (.xlsx) - Styled", "CSV - Raw Data"])
 
-    # Processing
-    if file1 and file2:
+    # Processing - only run if ALL files are uploaded
+    valid_files_count = sum(1 for f in uploaded_files if f is not None)
+    
+    if valid_files_count == num_months:
         try:
             with st.spinner("Processing reports & merging data..."):
                 datasets = []
                 labels = []
+                seen_labels = {}
                 
                 # Helper to process uploads
                 def add_dataset(file_obj, raw_label):
-                    final_label = raw_label.strip() if raw_label.strip() else infer_month_label(Path(file_obj.name))
+                    base_label = raw_label.strip() if raw_label.strip() else infer_month_label(Path(file_obj.name))
+                    final_label = base_label
+                    
+                    # Prevent duplicate labels crashing the app
+                    counter = 2
+                    while final_label in seen_labels:
+                        final_label = f"{base_label} ({counter})"
+                        counter += 1
+                        
+                    seen_labels[final_label] = True
                     df = read_uploaded_file(file_obj)
                     datasets.append((df, final_label))
                     labels.append(final_label)
 
-                add_dataset(file1, label1)
-                add_dataset(file2, label2)
-                if file3:
-                    add_dataset(file3, label3)
+                for file_obj, raw_label in zip(uploaded_files, user_labels):
+                    add_dataset(file_obj, raw_label)
 
                 # Process
                 result = build_comparison_table(datasets)
@@ -203,7 +220,7 @@ def main():
             st.error(f"An error occurred: {str(e)}")
             
     else:
-        st.info("👆 Please upload both files to generate your comparison.")
+        st.info(f"👆 Please upload all {num_months} files to generate your comparison.")
 
 
 if __name__ == "__main__":

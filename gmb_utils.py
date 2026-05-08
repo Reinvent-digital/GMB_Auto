@@ -85,7 +85,10 @@ def build_comparison_table(datasets: list) -> pd.DataFrame:
     all_keys = pd.concat([d[0][merge_keys] for d in datasets]).drop_duplicates().reset_index(drop=True)
     output = all_keys.sort_values("Business name").reset_index(drop=True)
     
-    for metric in METRIC_COLUMNS:
+    # First, find which metrics exist in at least one dataset
+    active_metrics = [m for m in METRIC_COLUMNS if any(m in d[0].columns for d in datasets)]
+    
+    for metric in active_metrics:
         for df, label in datasets:
             col_name = f"{metric} {label}"
             if metric in df.columns:
@@ -98,10 +101,13 @@ def build_comparison_table(datasets: list) -> pd.DataFrame:
                 
                 output = pd.merge(output, temp, on=merge_keys, how="left")
                 output[col_name] = output[col_name].fillna(0).astype(int)
+            else:
+                # If this dataset is missing the metric but others have it, pad with 0
+                output[col_name] = 0
 
     # Filter to only the columns that actually got created, in the right order
     first_cols = merge_keys.copy()
-    for metric in METRIC_COLUMNS:
+    for metric in active_metrics:
         for df, label in datasets:
             col_name = f"{metric} {label}"
             if col_name in output.columns:
